@@ -8,6 +8,8 @@ import binascii
 import time
 import tkinter as tk 
 from tkinter import filedialog, messagebox
+import qrcode
+from PIL import Image, ImageTk
 
 # Global değişkenleri en başta tanımla
 password = ""
@@ -60,21 +62,45 @@ def timer(window, count=30):
         window.after(1000, lambda: timer(window, count - 1))
     else:
         window.after(1000, lambda: count_label.destroy())
-        # Sayaç sıfırlandığında yeni OTP oluştur
-        entry_widget = window.children['!entry']  # Entry widget'ını bul
+        # Sayaç sıfırlandığında yeni OTP ve QR kod oluştur
+        entry_widget = window.children['!entry']
         key = entry_widget.get()
         if len(key) == 64 and all(c in '0123456789ABCDEFabcdef' for c in key):
             counter = int(time.time() // 30)
             new_password = generate_hotp(key, counter)
             if new_password:
                 password_label.config(text=new_password, font=('Arial', 10))
+                # Yeni QR kod oluştur
+                qr = qrcode.QRCode(version=1, box_size=5, border=5)
+                qr.add_data(new_password)
+                qr.make(fit=True)
+                qr_image = qr.make_image(fill_color="black", back_color="white")
+                qr_photo = ImageTk.PhotoImage(qr_image)
+                window.qr_label.configure(image=qr_photo)
+                window.qr_label.image = qr_photo
         window.after(1000, lambda: timer(window, 30))
 
 def create_window(gui):
     global result_label, password_label
     window = tk.Tk()
     window.title("OTP Üreteci")
-    window.geometry("500x300")
+    window.geometry("500x500")  # Pencereyi büyüttüm QR kod için
+
+    def generate_qr(otp):
+        qr = qrcode.QRCode(version=1, box_size=5, border=5)
+        qr.add_data(otp)
+        qr.make(fit=True)
+        qr_image = qr.make_image(fill_color="black", back_color="white")
+        # QR kodu TK için uygun formata dönüştür
+        qr_photo = ImageTk.PhotoImage(qr_image)
+        # Eğer önceden QR kod label'ı varsa, güncelle
+        if hasattr(window, 'qr_label'):
+            window.qr_label.configure(image=qr_photo)
+            window.qr_label.image = qr_photo
+        else:
+            window.qr_label = tk.Label(window, image=qr_photo)
+            window.qr_label.image = qr_photo
+            window.qr_label.place(x=200, y=250)
 
     def generate_otp():
         key = entry.get()
@@ -83,6 +109,7 @@ def create_window(gui):
             password = generate_hotp(key, counter)
             if password:
                 password_label.config(text=password, font=('Arial', 10))
+                generate_qr(password)  # QR kod oluştur
                 timer(window)  # Sayacı başlat
         else:
             result_label.config(text="Hata: 64 karakterli hexadecimal bir anahtar giriniz")
