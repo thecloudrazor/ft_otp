@@ -6,8 +6,13 @@ import struct
 from cryptography.fernet import Fernet
 import binascii
 import time
-from ft_otp_bonus import create_window
+import tkinter as tk 
+from tkinter import filedialog, messagebox
 
+# Global değişkenleri en başta tanımla
+password = ""
+result_label = None
+password_label = None
 
 def generate_key():
     return Fernet.generate_key()
@@ -34,13 +39,101 @@ def decrypt_key(key_file):
 
 
 def generate_hotp(secret, counter):
-    key = binascii.unhexlify(secret)
-    counter_bytes = struct.pack('>Q', counter)
-    h = hmac.new(key, counter_bytes, hashlib.sha1).digest()
-    offset = h[-1] & 0xf
-    binary = struct.unpack('>L', h[offset:offset+4])[0] & 0x7fffffff
-    return str(binary)[-6:].zfill(6)
+    try:
+        key = binascii.unhexlify(secret)
+        counter_bytes = struct.pack('>Q', counter)
+        h = hmac.new(key, counter_bytes, hashlib.sha1).digest()
+        offset = h[-1] & 0xf
+        binary = struct.unpack('>L', h[offset:offset+4])[0] & 0x7fffffff
+        return str(binary)[-6:].zfill(6)
+    except binascii.Error:
+        print("Hata: Geçersiz hexadecimal karakter dizisi")
+        return None
 
+def timer(window, count=30):
+    global password_label, result_label
+    count_label = tk.Label(window, text=str(count), font=('Arial', 30))
+    count_label.place(x=365, y=200)
+    
+    if count > 0:
+        window.after(1000, lambda: count_label.destroy())
+        window.after(1000, lambda: timer(window, count - 1))
+    else:
+        window.after(1000, lambda: count_label.destroy())
+        # Sayaç sıfırlandığında yeni OTP oluştur
+        entry_widget = window.children['!entry']  # Entry widget'ını bul
+        key = entry_widget.get()
+        if len(key) == 64 and all(c in '0123456789ABCDEFabcdef' for c in key):
+            counter = int(time.time() // 30)
+            new_password = generate_hotp(key, counter)
+            if new_password:
+                password_label.config(text=new_password, font=('Arial', 10))
+        window.after(1000, lambda: timer(window, 30))
+
+def create_window(gui):
+    global result_label, password_label
+    window = tk.Tk()
+    window.title("OTP Üreteci")
+    window.geometry("500x300")
+
+    def generate_otp():
+        key = entry.get()
+        if len(key) == 64 and all(c in '0123456789ABCDEFabcdef' for c in key):
+            counter = int(time.time() // 30)
+            password = generate_hotp(key, counter)
+            if password:
+                password_label.config(text=password, font=('Arial', 10))
+                timer(window)  # Sayacı başlat
+        else:
+            result_label.config(text="Hata: 64 karakterli hexadecimal bir anahtar giriniz")
+            password_label.config(text="")
+
+    # OTP ve sayaç için label'lar
+    result_label = tk.Label(window, text="", font=('Arial', 12))
+    result_label.place(x=200, y=50)
+    
+    password_label = tk.Label(window, text="", font=('Arial', 10))
+    password_label.place(x=366, y=170)
+
+    # Giriş alanları ve butonlar
+    tk.Label(window, text="Hexadecimal Anahtarı Giriniz", font=('Arial', 10)).place(x=50, y=130)
+    entry = tk.Entry(window, font=('Arial', 15))
+    entry.place(x=50, y=150)
+    
+    generate_button = tk.Button(window, text="Üret", command=generate_otp)
+    generate_button.place(x=50, y=180)
+    
+    file_button = tk.Button(window, text="Dosyadan Anahtar Seç", command=SelectFile)
+    file_button.place(x=50, y=210)
+
+    window.mainloop()
+
+def SelectFile():
+    global result_label, password_label, password  # Tüm global değişkenleri belirt
+    file_path = tk.filedialog.askopenfilename(title="Dosya Seç")
+    if file_path:
+        try:
+            with open(file_path, 'r') as f:
+                key_data = f.read().strip()
+            
+            if len(key_data) == 64 and all(c in '0123456789ABCDEFabcdef' for c in key_data):
+                if encrypt_key(key_data):
+                    tk.messagebox.showinfo("Başarılı", "Anahtar başarıyla ft_otp.key dosyasına kaydedildi.")
+                    counter = int(time.time() // 30)
+                    password = generate_hotp(key_data, counter)
+                    if password:
+                        password_label.config(text=password, font=('Arial', 10))
+                    else:
+                        tk.messagebox.showerror("Hata", "OTP üretilirken bir hata oluştu.")
+            else:
+                tk.messagebox.showerror("Hata", "Dosya içeriği 64 hexadecimal karakter olmalıdır.")
+        
+        except FileNotFoundError:
+            tk.messagebox.showerror("Hata", f"{file_path} dosyası bulunamadı.")
+        except UnicodeDecodeError:
+            tk.messagebox.showerror("Hata", "Dosya içeriği okunamadı. Metin dosyası olduğundan emin olun.")
+        except Exception as e:
+            tk.messagebox.showerror("Hata", f"Beklenmeyen bir hata oluştu: {str(e)}")
 
 def check_arg():
     parser = argparse.ArgumentParser()
@@ -49,10 +142,15 @@ def check_arg():
     parser.add_argument("-G", "--gui", help="Run the GUI")
     return parser.parse_args()
 
+def printPassword(args):
+    secret = decrypt_key(args.key)
+    counter = int(time.time() // 30)
+    password = generate_hotp(secret, counter)
+    print(password)
+    return password
 
 def main():
     args = check_arg()
-    
     if args.generate:
         try:
             with open(args.generate, 'r') as f:
@@ -71,11 +169,7 @@ def main():
 
     elif args.key:
         try:
-            secret = decrypt_key(args.key)
-            counter = int(time.time() // 30)
-            password = generate_hotp(secret, counter)
-            print(password)
-            
+            printPassword(args)
         except FileNotFoundError:
             print(f"Error: {args.key} file not found.")
             sys.exit(1)
