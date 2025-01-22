@@ -8,10 +8,11 @@ import qrcode
 from global_variables import current_key, current_timer, password_label, result_label, window
 
 def create_window():
-    global result_label, password_label, window  # window'u global yaptık
+    global result_label, password_label, window
     window = tk.Tk()
-    window.title("OTP Üreteci")
-    window.geometry("500x500")
+    window.title("OTP Generator")
+    window.geometry("500x250")
+    window.resizable(False, False)
 
     def generate_otp():
         global current_key, current_timer
@@ -34,7 +35,7 @@ def create_window():
                 generate_qr(password)
                 timer(window)
         else:
-            result_label.config(text="Hata: 64 karakterli hexadecimal bir anahtar giriniz")
+            result_label.config(text="Error: Please enter a 64-character hexadecimal key")
             password_label.config(text="")
             current_key = None
 
@@ -46,21 +47,21 @@ def create_window():
     password_label.place(x=366, y=170)
 
     # Giriş alanları ve butonlar
-    tk.Label(window, text="Hexadecimal Anahtarı Giriniz", font=('Arial', 10)).place(x=50, y=130)
+    print("Enter Hexadecimal Key")
     entry = tk.Entry(window, font=('Arial', 15))
-    entry.place(x=50, y=150)
+    entry.place(x=50, y=70)
     
-    generate_button = tk.Button(window, text="Üret", command=generate_otp)
-    generate_button.place(x=50, y=180)
+    generate_button = tk.Button(window, text="Generate", command=generate_otp, width=10)
+    generate_button.place(x=70, y=110)
     
-    file_button = tk.Button(window, text="Dosyadan Anahtar Seç", command=SelectFile)
-    file_button.place(x=50, y=210)
+    file_button = tk.Button(window, text="Select File", command=SelectFile, width=10)
+    file_button.place(x=170, y=110)
 
     window.mainloop()
 
 def SelectFile():
     global result_label, password_label, password, current_timer, current_key, window
-    file_path = tk.filedialog.askopenfilename(title="Dosya Seç")
+    file_path = tk.filedialog.askopenfilename(title="Select File")
     if file_path:
         try:
             with open(file_path, 'r') as f:
@@ -80,7 +81,7 @@ def SelectFile():
                 
                 if encrypt_key(key_data):
                     current_key = key_data
-                    tk.messagebox.showinfo("Başarılı", "Anahtar başarıyla ft_otp.key dosyasına kaydedildi.")
+                    tk.messagebox.showinfo("Success", "Key successfully saved to ft_otp.key file.")
                     counter = int(time.time() // 30)
                     password = generate_hotp(key_data, counter)
                     if password:
@@ -88,17 +89,17 @@ def SelectFile():
                         generate_qr(password)
                         timer(window, 30)  # Sayacı 30'dan başlat
                     else:
-                        tk.messagebox.showerror("Hata", "OTP üretilirken bir hata oluştu.")
+                        tk.messagebox.showerror("Error", "An error occurred while generating OTP.")
             else:
-                tk.messagebox.showerror("Hata", "Dosya içeriği 64 hexadecimal karakter olmalıdır.")
+                tk.messagebox.showerror("Error", "File content must be 64 hexadecimal characters.")
                 current_key = None
         
         except FileNotFoundError:
-            tk.messagebox.showerror("Hata", f"{file_path} dosyası bulunamadı.")
+            tk.messagebox.showerror("Error", f"File {file_path} not found.")
         except UnicodeDecodeError:
-            tk.messagebox.showerror("Hata", "Dosya içeriği okunamadı. Metin dosyası olduğundan emin olun.")
+            tk.messagebox.showerror("Error", "Could not read file content. Make sure it's a text file.")
         except Exception as e:
-            tk.messagebox.showerror("Hata", f"Beklenmeyen bir hata oluştu: {str(e)}")
+            tk.messagebox.showerror("Error", f"An unexpected error occurred: {str(e)}")
 
 def generate_qr(otp):
     qr = qrcode.QRCode(version=1, box_size=5, border=5)
@@ -112,7 +113,7 @@ def generate_qr(otp):
     else:
         window.qr_label = tk.Label(window, image=qr_photo)
         window.qr_label.image = qr_photo
-        window.qr_label.place(x=200, y=250)
+        window.qr_label.place(x=313, y=10)
 
 def timer(window, count=30):
     global password_label, result_label, current_timer

@@ -17,5 +17,5 @@ def generate_hotp(secret, counter):
         binary = struct.unpack('>L', h[offset:offset+4])[0] & 0x7fffffff
         return str(binary)[-6:].zfill(6)
     except binascii.Error:
-        print("Hata: Geçersiz hexadecimal karakter dizisi")
+        print("Error: Invalid hexadecimal character")
         return None
