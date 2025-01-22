@@ -11,7 +11,7 @@ def check_arg():
     parser = argparse.ArgumentParser()
     parser.add_argument("-g", "--generate", help="Generate a new OTP key")
     parser.add_argument("-k", "--key", help="Use an existing OTP key")
-    parser.add_argument("-G", "--gui", help="Run the GUI")
+    parser.add_argument("-G", "--gui", action="store_true", help="Run the GUI")
     return parser.parse_args()
 
 def printPassword(args):
@@ -48,7 +48,7 @@ def main():
     elif args.gui:
         create_window()
     else:
-        print("Usage: ./ft_otp [-g key_file] or [-k ft_otp.key]")
+        print("Usage: ./ft_otp [-g key_file] or [-k ft_otp.key] or [-G]")
         sys.exit(1)
 
 if __name__ == "__main__":
