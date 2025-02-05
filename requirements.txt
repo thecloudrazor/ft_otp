@@ -1,4 +1,4 @@
-cryptography
 Pillow
-qrcode
 tkinter
+cryptography
+qrcode
